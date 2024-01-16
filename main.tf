@@ -53,7 +53,7 @@ output "existing_vpc_id" {
 resource "aws_subnet" "test_terraform_subnet_public_amar_henni" {
   # vpc_id     = "vpc-005e78293bf3c2b77"
   vpc_id     = data.aws_vpc.vpc_terraform.id
-  cidr_block = "50.10.190.0/24"
+  cidr_block = "50.10.96.0/24"
   tags = {
     Name = "subnet_terraform_amar_henni"
   }
@@ -77,7 +77,7 @@ resource "aws_instance" "ec2-amar" {
     subnet_id = aws_subnet.test_terraform_subnet_public_amar_henni.id
     #key_name = "shittest"
     tags = {
-      Name = "Test-EC2-terraform-001"
+      Name = "ec2_public_terraform_amar_henni"
       user_data = <<-EOF
                 #!/bin/bash
                 sudo apt-get update
