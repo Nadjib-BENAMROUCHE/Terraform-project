@@ -1,3 +1,27 @@
+# resource "aws_security_group" "public_sg_acces" {
+#   name        = "public_sg_acces"
+#   description = "Security group for public EC2 instances"
+#   vpc_id      = data.aws_vpcs.existing_vpc.ids[0]
+#   ingress {
+#     from_port   = 22
+#     to_port     = 22
+#     protocol    = "tcp"
+#     cidr_blocks = ["0.0.0.0/0"]
+#   }
+#   egress {
+#     from_port   = 0
+#     to_port     = 0
+#     protocol    = "-1"
+#     cidr_blocks = ["0.0.0.0/0"]
+#   }
+#   tags = {
+#     Name = "public_security_group"
+#   }
+# }
+
+
+
+
 #Methode 1: Generation de key ssh sur linux
 # provider "aws" {
 #     region = "us-east-1"
