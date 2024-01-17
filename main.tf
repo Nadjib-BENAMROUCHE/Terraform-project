@@ -1,42 +1,8 @@
-#Methode 1: Generation de key ssh sur linux
-# provider "aws" {
-#     region = "us-east-1"
-# }
-# resource "aws_instance" "ec2testssh" {
-#     ami = "ami-0005e0cfe09cc9050"
-#     instance_type = "t2.micro"
-#     count = 1
-#     key_name = "shittest"
-#     tags = {
-#       Name = "HelloWorldhhhh"
-#     }
-# }
-# resource "aws_key_pair" "shittest" {
-#     key_name = "shittest"
-#     public_key = file("./id_rsa.pub")
-# }
-#--------------------------------------------
-#Methode 2: Generation de key pair sur le console aws
-# provider "aws" {
-#     region = "us-east-1"
-# }
-# resource "aws_instance" "ec2testssh" {
-#     ami = "ami-0005e0cfe09cc9050"
-#     instance_type = "t2.micro"
-#     count = 1
-#     key_name = "shittest"
-#     tags = {
-#       Name = "HelloWorldhhhh"
-#     }
-# }
-#-------------------------------------
-#Methode3 : Utilisation de terraform resources
-
 provider "aws" {
-    region = "eu-west-1"
+  region = "eu-west-1"
 }
 
-data "aws_vpc" "vpc_terraform" {                             # or aws_vpc 
+data "aws_vpc" "vpc_terraform" { # or aws_vpc 
   # Récupérer le VPC en fonction de l'ID
   # ids = ["vpc-005e78293bf3c2b77"]                          # ça ne marche pas
   # OU récupérer le VPC en fonction du nom (par exemple, "mon-vpc")
@@ -71,19 +37,19 @@ output "internet_gateway_id" {
 }
 
 resource "aws_instance" "ec2-amar" {
-    ami = "ami-0905a3c97561e0b69"
-    instance_type = "t2.micro"
-    #count = 1
-    subnet_id = aws_subnet.test_terraform_subnet_public_amar_henni.id
-    #key_name = "shittest"
-    tags = {
-      Name = "ec2_public_terraform_amar_henni"
-      user_data = <<-EOF
+  ami                    = "ami-0905a3c97561e0b69"
+  instance_type          = "t2.micro"
+  vpc_security_group_ids = [aws_security_group.security_groupe_public.id]
+  subnet_id              = aws_subnet.test_terraform_subnet_public_amar_henni.id
+  #key_name = "shittest"
+  tags = {
+    Name      = "ec2_public_terraform_amar_henni"
+    user_data = <<-EOF
                 #!/bin/bash
                 sudo apt-get update
                 sudo apt-get install python3 -y
                 EOF
-    }
+  }
 }
 
 data "aws_eip" "by_public_eip" {
@@ -96,14 +62,14 @@ output "eip_id" {
 
 #Table de routage pour la subnet
 resource "aws_route_table" "public_route_table_amar" {
-    vpc_id = data.aws_vpc.vpc_terraform.id
-    route {
-        cidr_block = "0.0.0.0/0"
-        gateway_id = data.aws_internet_gateway.gateway.id
-    }
-    tags = {
-        Name = "public_route_table_amar"
-    }
+  vpc_id = data.aws_vpc.vpc_terraform.id
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = data.aws_internet_gateway.gateway.id
+  }
+  tags = {
+    Name = "public_route_table_amar"
+  }
 }
 
 resource "aws_eip_association" "eip_assoc" {
@@ -113,11 +79,31 @@ resource "aws_eip_association" "eip_assoc" {
 
 #Association de la table de routage pb au subnet public
 resource "aws_route_table_association" "public_subnet_association" {
-    subnet_id      = aws_subnet.test_terraform_subnet_public_amar_henni.id
-    route_table_id = aws_route_table.public_route_table_amar.id
+  subnet_id      = aws_subnet.test_terraform_subnet_public_amar_henni.id
+  route_table_id = aws_route_table.public_route_table_amar.id
 }
 
-
+#__________________________________________________________
+resource "aws_security_group" "security_groupe_public" {
+  name        = "security_groupe_public_amar_henni"
+  description = "Security group for public EC2 instances"
+  vpc_id      = data.aws_vpc.vpc_terraform.id
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  tags = {
+    Name = "public_security_group"
+  }
+}
 ########################################################################### 
 
 #Resource pour la generation de pair de cle
