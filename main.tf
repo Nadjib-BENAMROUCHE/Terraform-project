@@ -1,46 +1,70 @@
 provider "aws" {
   region = "eu-west-1"
 }
-
-data "aws_vpc" "vpc_terraform" { # or aws_vpc 
-  # Récupérer le VPC en fonction de l'ID
-  # ids = ["vpc-005e78293bf3c2b77"]                          # ça ne marche pas
-  # OU récupérer le VPC en fonction du nom (par exemple, "mon-vpc")
-  filter {
-    name   = "tag:Name"
-    values = ["km-devops-vpc-terraform"]
-  }
+module "vpc_terraform" {
+  source = "./Modules/Vpc_module/"
 }
 
-output "existing_vpc_id" {
-  value = data.aws_vpc.vpc_terraform.id
+#__________________ PRIVATE Subnet___________________________________
+module "subnet_private" {
+  source           = "./Modules/Subnet_module/"
+  cidr_block_value = var.cidr_block_value_private
+  subnet_name      = var.subnet_name_private
 }
+#####################################################################
 
-resource "aws_subnet" "test_terraform_subnet_public_amar_henni" {
-  # vpc_id     = "vpc-005e78293bf3c2b77"
-  vpc_id     = data.aws_vpc.vpc_terraform.id
-  cidr_block = "50.10.96.0/24"
-  tags = {
-    Name = "subnet_terraform_amar_henni"
-  }
+
+#__________________ PUBLIC Subnet____________________________________
+module "subnet_public" {
+  source           = "./Modules/Subnet_module/"
+  cidr_block_value = var.cidr_block_value_public
+  subnet_name      = var.subnet_name_public
 }
+#####################################################################
 
+#__________________ Internet Gateway ________________________________
 data "aws_internet_gateway" "gateway" {
   filter {
     name   = "attachment.vpc-id"
-    values = [data.aws_vpc.vpc_terraform.id]
+    values = [module.vpc_terraform.existing_vpc_id]
   }
 }
-
 output "internet_gateway_id" {
   value = data.aws_internet_gateway.gateway.id
 }
+#####################################################################
 
+#__________________ ROUTE TABLE______________________________________
+#Table de routage pour la subnet
+resource "aws_route_table" "public_route_table_amar" {
+  vpc_id = module.vpc_terraform.existing_vpc_id
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = data.aws_internet_gateway.gateway.id
+  }
+  tags = {
+    Name = "public_route_table_amar"
+  }
+}
+#Association de la table de routage pb au subnet public
+resource "aws_route_table_association" "public_subnet_association" {
+  subnet_id      = module.subnet_public.aws_subnet_module_id
+  route_table_id = aws_route_table.public_route_table_amar.id
+}
+#####################################################################
+
+
+
+
+
+
+
+#__________________ PRIVATE EC2_________________
 resource "aws_instance" "ec2-amar" {
   ami                    = "ami-0905a3c97561e0b69"
   instance_type          = "t2.micro"
   vpc_security_group_ids = [aws_security_group.security_groupe_public.id]
-  subnet_id              = aws_subnet.test_terraform_subnet_public_amar_henni.id
+  subnet_id              = module.subnet_public.aws_subnet_module_id
   #key_name = "shittest"
   tags = {
     Name      = "ec2_public_terraform_amar_henni"
@@ -51,7 +75,6 @@ resource "aws_instance" "ec2-amar" {
                 EOF
   }
 }
-
 data "aws_eip" "by_public_eip" {
   public_ip = "54.154.167.140"
 }
@@ -59,35 +82,18 @@ data "aws_eip" "by_public_eip" {
 output "eip_id" {
   value = data.aws_eip.by_public_eip.id
 }
-
-#Table de routage pour la subnet
-resource "aws_route_table" "public_route_table_amar" {
-  vpc_id = data.aws_vpc.vpc_terraform.id
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = data.aws_internet_gateway.gateway.id
-  }
-  tags = {
-    Name = "public_route_table_amar"
-  }
-}
-
 resource "aws_eip_association" "eip_assoc" {
   instance_id   = aws_instance.ec2-amar.id
   allocation_id = data.aws_eip.by_public_eip.id
 }
 
-#Association de la table de routage pb au subnet public
-resource "aws_route_table_association" "public_subnet_association" {
-  subnet_id      = aws_subnet.test_terraform_subnet_public_amar_henni.id
-  route_table_id = aws_route_table.public_route_table_amar.id
-}
+
 
 #__________________________________________________________
 resource "aws_security_group" "security_groupe_public" {
   name        = "security_groupe_public_amar_henni"
   description = "Security group for public EC2 instances"
-  vpc_id      = data.aws_vpc.vpc_terraform.id
+  vpc_id      = module.vpc_terraform.existing_vpc_id
   ingress {
     from_port   = 22
     to_port     = 22
