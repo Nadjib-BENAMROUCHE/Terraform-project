@@ -3,5 +3,5 @@ variable "subnet_name" {
 }
 
 variable "cidr_block_value" {
-  type = string
+  type = string 
 }
